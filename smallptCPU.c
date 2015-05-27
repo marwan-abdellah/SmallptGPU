@@ -33,13 +33,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string.h>
 #include <math.h>
 
-#include "camera.h"
+#include "Camera.hh"
 #include "scene.h"
 #include "displayfunc.h"
 
 int workGroupSize = 1;
 
-static Vec *colors;
+static Vector3 *colors;
 static unsigned int *seeds;
 Camera camera;
 static int currentSample = 0;
@@ -47,129 +47,129 @@ Sphere *spheres;
 unsigned int sphereCount;
 
 void FreeBuffers() {
-	free(seeds);
-	free(colors);
-	free(pixels);
+    free(seeds);
+    free(colors);
+    free(pixels);
 }
 
 void AllocateBuffers() {
-	const int pixelCount = height * width ;
-	int i;
-	colors = (Vec*)malloc(sizeof(Vec)*pixelCount);
+    const int pixelCount = height * width ;
+    int i;
+    colors = (Vector3*)malloc(sizeof(Vector3)*pixelCount);
 
-	seeds = (unsigned int*)malloc(sizeof(unsigned int)* pixelCount * 2);
-	for (i = 0; i < pixelCount * 2; i++) {
-		seeds[i] = rand();
-		if (seeds[i] < 2)
-			seeds[i] = 2;
-	}
+    seeds = (unsigned int*)malloc(sizeof(unsigned int)* pixelCount * 2);
+    for (i = 0; i < pixelCount * 2; i++) {
+        seeds[i] = rand();
+        if (seeds[i] < 2)
+            seeds[i] = 2;
+    }
 
-	pixels = (unsigned int*)malloc(sizeof(unsigned int)* pixelCount);
+    pixels = (unsigned int*)malloc(sizeof(unsigned int)* pixelCount);
 }
 
 void UpdateRendering(void) {
-	double startTime = WallClockTime();
+    double startTime = WallClockTime();
 
-	const float invWidth = 1.f / width;
-	const float invHeight = 1.f / height;
+    const float invWidth = 1.f / width;
+    const float invHeight = 1.f / height;
 
-	int x, y;
-	for (y = 0; y < height; y++) { /* Loop over image rows */
-		for (x = 0; x < width; x++) { /* Loop cols */
-			const int i = (height - y - 1) * width + x;
-			const int i2 = 2 * i;
+    int x, y;
+    for (y = 0; y < height; y++) { /* Loop over image rows */
+        for (x = 0; x < width; x++) { /* Loop cols */
+            const int i = (height - y - 1) * width + x;
+            const int i2 = 2 * i;
 
-			const float r1 = GetRandom(&seeds[i2], &seeds[i2 + 1]) - .5f;
-			const float r2 = GetRandom(&seeds[i2], &seeds[i2 + 1]) - .5f;
-			const float kcx = (x + r1) * invWidth - .5f;
-			const float kcy = (y + r2) * invHeight - .5f;
+            const float r1 = GetRandom(&seeds[i2], &seeds[i2 + 1]) - .5f;
+            const float r2 = GetRandom(&seeds[i2], &seeds[i2 + 1]) - .5f;
+            const float kcx = (x + r1) * invWidth - .5f;
+            const float kcy = (y + r2) * invHeight - .5f;
 
-			Vec rdir;
-			vinit(rdir,
-				camera.x.x * kcx + camera.y.x * kcy + camera.dir.x,
-				camera.x.y * kcx + camera.y.y * kcy + camera.dir.y,
-				camera.x.z * kcx + camera.y.z * kcy + camera.dir.z);
+            Vector3 rdir;
+            initVector3(rdir,
+                camera.x.x * kcx + camera.y.x * kcy + camera.direction.x,
+                camera.x.y * kcx + camera.y.y * kcy + camera.direction.y,
+                camera.x.z * kcx + camera.y.z * kcy + camera.direction.z);
 
-			Vec rorig;
-			vsmul(rorig, 0.1f, rdir);
-			vadd(rorig, rorig, camera.orig)
+            Vector3 rorig;
+            multiplyVector3Const(rorig, 0.1f, rdir);
+            addVectors3(rorig, rorig, camera.origin)
 
-			vnorm(rdir);
-			const Ray ray = {rorig, rdir};
-			Vec r;
-			Radiance(spheres, sphereCount, renderingFlags, &ray,
-					&seeds[i2], &seeds[i2 + 1], &r);
+            normVector3(rdir);
+            const Ray ray = {rorig, rdir};
+            Vector3 r;
+            Radiance(spheres, sphereCount, renderingFlags, &ray,
+                    &seeds[i2], &seeds[i2 + 1], &r);
 
-			if (currentSample == 0)
-				colors[i] = r;
-			else {
-				const float k1 = currentSample;
-				const float k2 = 1.f / (k1 + 1.f);
-				colors[i].x = (colors[i].x * k1 + r.x) * k2;
-				colors[i].y = (colors[i].y * k1 + r.y) * k2;
-				colors[i].z = (colors[i].z * k1 + r.z) * k2;
-			}
+            if (currentSample == 0)
+                colors[i] = r;
+            else {
+                const float k1 = currentSample;
+                const float k2 = 1.f / (k1 + 1.f);
+                colors[i].x = (colors[i].x * k1 + r.x) * k2;
+                colors[i].y = (colors[i].y * k1 + r.y) * k2;
+                colors[i].z = (colors[i].z * k1 + r.z) * k2;
+            }
 
-			pixels[y * width + x] = toInt(colors[i].x) |
-					(toInt(colors[i].y) << 8) |
-					(toInt(colors[i].z) << 16);
-		}
-	}
+            pixels[y * width + x] = toInt(colors[i].x) |
+                    (toInt(colors[i].y) << 8) |
+                    (toInt(colors[i].z) << 16);
+        }
+    }
 
-	const float elapsedTime = WallClockTime() - startTime;
-	const float sampleSec = height * width / elapsedTime;
-	sprintf(captionBuffer, "Rendering time %.3f sec (pass %d)  Sample/sec  %.1fK\n",
-		elapsedTime, currentSample, sampleSec / 1000.f);
+    const float elapsedTime = WallClockTime() - startTime;
+    const float sampleSec = height * width / elapsedTime;
+    sprintf(captionBuffer, "Rendering time %.3f sec (pass %d)  Sample/sec  %.1fK\n",
+        elapsedTime, currentSample, sampleSec / 1000.f);
 
-	currentSample++;
+    currentSample++;
 }
 
 void ReInitScene() {
-	currentSample = 0;
+    currentSample = 0;
 }
 
 void ReInit(const int reallocBuffers) {
-	// Check if I have to reallocate buffers
-	if (reallocBuffers) {
-		FreeBuffers();
-		AllocateBuffers();
-	}
+    // Check if I have to reallocate buffers
+    if (reallocBuffers) {
+        FreeBuffers();
+        AllocateBuffers();
+    }
 
-	UpdateCamera();
-	currentSample = 0;
-	UpdateRendering();
+    UpdateCamera();
+    currentSample = 0;
+    UpdateRendering();
 }
 
 int main(int argc, char *argv[]) {
-	amiSmallptCPU = 1;
+    amiSmallptCPU = 1;
 
-	fprintf(stderr, "Usage: %s\n", argv[0]);
-	fprintf(stderr, "Usage: %s <window width> <window height> <scene file>\n", argv[0]);
+    fprintf(stderr, "Usage: %s\n", argv[0]);
+    fprintf(stderr, "Usage: %s <window width> <window height> <scene file>\n", argv[0]);
 
-	if (argc == 4) {
-		width = atoi(argv[1]);
-		height = atoi(argv[2]);
-		ReadScene(argv[3]);
-	} else if (argc == 1) {
-		spheres = CornellSpheres;
-		sphereCount = sizeof(CornellSpheres) / sizeof(Sphere);
+    if (argc == 4) {
+        width = atoi(argv[1]);
+        height = atoi(argv[2]);
+        ReadScene(argv[3]);
+    } else if (argc == 1) {
+        spheres = CornellSpheres;
+        sphereCount = sizeof(CornellSpheres) / sizeof(Sphere);
 
-		vinit(camera.orig, 50.f, 45.f, 205.6f);
-		vinit(camera.target, 50.f, 45 - 0.042612f, 204.6);
-	} else
-		exit(-1);
+        initVector3(camera.origin, 50.f, 45.f, 205.6f);
+        initVector3(camera.target, 50.f, 45 - 0.042612f, 204.6);
+    } else
+        exit(-1);
 
-	UpdateCamera();
+    UpdateCamera();
 
-	/*------------------------------------------------------------------------*/
+    /*------------------------------------------------------------------------*/
 
-	AllocateBuffers();
+    AllocateBuffers();
 
-	/*------------------------------------------------------------------------*/
+    /*------------------------------------------------------------------------*/
 
-	InitGlut(argc, argv, "SmallPT CPU V1.6alpha (Written by David Bucciarelli)");
+    InitGlut(argc, argv, "SmallPT CPU V1.6alpha (Written by David Bucciarelli)");
 
     glutMainLoop( );
 
-	return 0;
+    return 0;
 }

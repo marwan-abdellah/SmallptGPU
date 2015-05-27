@@ -40,7 +40,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <CL/cl.h>
 #endif
 
-#include "camera.h"
+#include "Camera.hh"
 #include "scene.h"
 #include "displayfunc.h"
 
@@ -61,7 +61,7 @@ static cl_kernel kernel;
 static unsigned int workGroupSize = 1;
 static char *kernelFileName = "rendering_kernel.cl";
 
-static Vec *colors;
+static Vector3 *colors;
 static unsigned int *seeds;
 Camera camera;
 static int currentSample = 0;
@@ -95,7 +95,7 @@ static void FreeBuffers() {
 static void AllocateBuffers() {
     const int pixelCount = width * height;
     int i;
-    colors = (Vec *)malloc(sizeof(Vec) * pixelCount);
+    colors = (Vector3 *)malloc(sizeof(Vector3) * pixelCount);
 
     seeds = (unsigned int *)malloc(sizeof(unsigned int) * pixelCount * 2);
     for (i = 0; i < pixelCount * 2; i++) {
@@ -107,7 +107,7 @@ static void AllocateBuffers() {
     pixels = (unsigned int *)malloc(sizeof(unsigned int) * pixelCount);
 
     cl_int status;
-    cl_uint sizeBytes = sizeof(Vec) * width * height;
+    cl_uint sizeBytes = sizeof(Vector3) * width * height;
     colorBuffer = clCreateBuffer(
             context,
             CL_MEM_READ_WRITE,
@@ -839,8 +839,8 @@ int main(int argc, char *argv[]) {
         spheres = CornellSpheres;
         sphereCount = sizeof(CornellSpheres) / sizeof(Sphere);
 
-        vinit(camera.orig, 50.f, 45.f, 205.6f);
-        vinit(camera.target, 50.f, 45 - 0.042612f, 204.6);
+        initVector3(camera.origin, 50.f, 45.f, 205.6f);
+        initVector3(camera.target, 50.f, 45 - 0.042612f, 204.6);
     } else
         exit(-1);
 

@@ -25,18 +25,21 @@ INCLUDE (FindGLUT)
 INCLUDE_DIRECTORIES( ${OPENCL_INCLUDE_DIR} )
 LINK_LIBRARIES(${OPENCL_LIBRARY})
 
-SET( SRC_FILES 
-	displayfunc.c
-	vec.h 
-	camera.h 
-	geom.h 
-	displayfunc.h 
-	simplernd.h 
-	scene.h 
-	geomfunc.h
+SET(SRC_FILES
+    Camera.hh
+        displayfunc.c
+        vec.h
+        geom.h
+        displayfunc.h
+        simplernd.h
+        scene.h
+        geomfunc.h
+        Vector3.hh
+        Math.hh
+        Defines.hh
 )
 
 # Create the executable
 ADD_EXECUTABLE( cpu smallptCPU.c ${SRC_FILES} )
 
-ADD_EXECUTABLE( gpu smallptGPU.c ${SRC_FILES} )
+ADD_EXECUTABLE( gpu smallptGPU.c ${SRC_FILES} rendering_kernel.cl)

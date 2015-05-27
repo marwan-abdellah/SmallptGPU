@@ -30,11 +30,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define FLOAT_PI 3.14159265358979323846f
 
 typedef struct {
-	Vec o, d;
+	Vector3 o, d;
 } Ray;
 
-#define rinit(r, a, b) { vassign((r).o, a); vassign((r).d, b); }
-#define rassign(a, b) { vassign((a).o, (b).o); vassign((a).d, (b).d); }
+#define rinit(r, a, b) { assignVector3((r).o, a); assignVector3((r).d, b); }
+#define rassign(a, b) { assignVector3((a).o, (b).o); assignVector3((a).d, (b).d); }
 
 enum Refl {
 	DIFF, SPEC, REFR
@@ -42,7 +42,7 @@ enum Refl {
 
 typedef struct {
 	float rad; /* radius */
-	Vec p, e, c; /* position, emission, color */
+	Vector3 p, e, c; /* position, emission, color */
 	enum Refl refl; /* reflection type (DIFFuse, SPECular, REFRactive) */
 } Sphere;
 

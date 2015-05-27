@@ -1,26 +1,3 @@
-/*
-Copyright (c) 2009 David Bucciarelli (davibu@interfree.it)
-
-Permission is hereby granted, free of charge, to any person obtaining
-a copy of this software and associated documentation files (the
-"Software"), to deal in the Software without restriction, including
-without limitation the rights to use, copy, modify, merge, publish,
-distribute, sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so, subject to
-the following conditions:
-
-The above copyright notice and this permission notice shall be included
-in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,7 +15,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         Unsupported Platform !!!
 #endif
 
-#include "camera.h"
+#include "Camera.hh"
 #include "geom.h"
 #include "displayfunc.h"
 
@@ -125,7 +102,7 @@ void ReadScene(char *fileName) {
 
     /* Read the camera position */
     int c = fscanf(f,"camera %f %f %f  %f %f %f\n",
-            &camera.orig.x, &camera.orig.y, &camera.orig.z,
+            &camera.origin.x, &camera.origin.y, &camera.origin.z,
             &camera.target.x, &camera.target.y, &camera.target.z);
     if (c != 6) {
         fprintf(stderr, "Failed to read 6 camera parameters: %d\n", c);
@@ -177,18 +154,18 @@ void ReadScene(char *fileName) {
 }
 
 void UpdateCamera() {
-    vsub(camera.dir, camera.target, camera.orig);
-    vnorm(camera.dir);
+    subtractVectors3(camera.direction, camera.target, camera.origin);
+    normVector3(camera.direction);
 
-    const Vec up = {0.f, 1.f, 0.f};
+    const Vector3 up = {0.f, 1.f, 0.f};
     const float fov = (M_PI / 180.f) * 45.f;
-    vxcross(camera.x, camera.dir, up);
-    vnorm(camera.x);
-    vsmul(camera.x, width * fov / height, camera.x);
+    crossVectors3(camera.x, camera.direction, up);
+    normVector3(camera.x);
+    multiplyVector3Const(camera.x, width * fov / height, camera.x);
 
-    vxcross(camera.y, camera.x, camera.dir);
-    vnorm(camera.y);
-    vsmul(camera.y, fov, camera.y);
+    crossVectors3(camera.y, camera.x, camera.direction);
+    normVector3(camera.y);
+    multiplyVector3Const(camera.y, fov, camera.y);
 }
 
 void idleFunc(void) {
@@ -271,46 +248,46 @@ void keyFunc(unsigned char key, int x, int y) {
             ReInit(1);
             break;
         case 'a': {
-            Vec dir = camera.x;
-            vnorm(dir);
-            vsmul(dir, -MOVE_STEP, dir);
-            vadd(camera.orig, camera.orig, dir);
-            vadd(camera.target, camera.target, dir);
+            Vector3 dir = camera.x;
+            normVector3(dir);
+            multiplyVector3Const(dir, -MOVE_STEP, dir);
+            addVectors3(camera.origin, camera.origin, dir);
+            addVectors3(camera.target, camera.target, dir);
             ReInit(0);
             break;
         }
         case 'd': {
-            Vec dir = camera.x;
-            vnorm(dir);
-            vsmul(dir, MOVE_STEP, dir);
-            vadd(camera.orig, camera.orig, dir);
-            vadd(camera.target, camera.target, dir);
+            Vector3 dir = camera.x;
+            normVector3(dir);
+            multiplyVector3Const(dir, MOVE_STEP, dir);
+            addVectors3(camera.origin, camera.origin, dir);
+            addVectors3(camera.target, camera.target, dir);
             ReInit(0);
             break;
         }
         case 'w': {
-            Vec dir = camera.dir;
-            vsmul(dir, MOVE_STEP, dir);
-            vadd(camera.orig, camera.orig, dir);
-            vadd(camera.target, camera.target, dir);
+            Vector3 dir = camera.direction;
+            multiplyVector3Const(dir, MOVE_STEP, dir);
+            addVectors3(camera.origin, camera.origin, dir);
+            addVectors3(camera.target, camera.target, dir);
             ReInit(0);
             break;
         }
         case 's': {
-            Vec dir = camera.dir;
-            vsmul(dir, -MOVE_STEP, dir);
-            vadd(camera.orig, camera.orig, dir);
-            vadd(camera.target, camera.target, dir);
+            Vector3 dir = camera.direction;
+            multiplyVector3Const(dir, -MOVE_STEP, dir);
+            addVectors3(camera.origin, camera.origin, dir);
+            addVectors3(camera.target, camera.target, dir);
             ReInit(0);
             break;
         }
         case 'r':
-            camera.orig.y += MOVE_STEP;
+            camera.origin.y += MOVE_STEP;
             camera.target.y += MOVE_STEP;
             ReInit(0);
             break;
         case 'f':
-            camera.orig.y -= MOVE_STEP;
+            camera.origin.y -= MOVE_STEP;
             camera.target.y -= MOVE_STEP;
             ReInit(0);
             break;
@@ -369,41 +346,41 @@ void keyFunc(unsigned char key, int x, int y) {
 void specialFunc(int key, int x, int y) {
     switch (key) {
         case GLUT_KEY_UP: {
-            Vec t = camera.target;
-            vsub(t, t, camera.orig);
+            Vector3 t = camera.target;
+            subtractVectors3(t, t, camera.origin);
             t.y = t.y * cos(-ROTATE_STEP) + t.z * sin(-ROTATE_STEP);
             t.z = -t.y * sin(-ROTATE_STEP) + t.z * cos(-ROTATE_STEP);
-            vadd(t, t, camera.orig);
+            addVectors3(t, t, camera.origin);
             camera.target = t;
             ReInit(0);
             break;
         }
         case GLUT_KEY_DOWN: {
-            Vec t = camera.target;
-            vsub(t, t, camera.orig);
+            Vector3 t = camera.target;
+            subtractVectors3(t, t, camera.origin);
             t.y = t.y * cos(ROTATE_STEP) + t.z * sin(ROTATE_STEP);
             t.z = -t.y * sin(ROTATE_STEP) + t.z * cos(ROTATE_STEP);
-            vadd(t, t, camera.orig);
+            addVectors3(t, t, camera.origin);
             camera.target = t;
             ReInit(0);
             break;
         }
         case GLUT_KEY_LEFT: {
-            Vec t = camera.target;
-            vsub(t, t, camera.orig);
+            Vector3 t = camera.target;
+            subtractVectors3(t, t, camera.origin);
             t.x = t.x * cos(-ROTATE_STEP) - t.z * sin(-ROTATE_STEP);
             t.z = t.x * sin(-ROTATE_STEP) + t.z * cos(-ROTATE_STEP);
-            vadd(t, t, camera.orig);
+            addVectors3(t, t, camera.origin);
             camera.target = t;
             ReInit(0);
             break;
         }
         case GLUT_KEY_RIGHT: {
-            Vec t = camera.target;
-            vsub(t, t, camera.orig);
+            Vector3 t = camera.target;
+            subtractVectors3(t, t, camera.origin);
             t.x = t.x * cos(ROTATE_STEP) - t.z * sin(ROTATE_STEP);
             t.z = t.x * sin(ROTATE_STEP) + t.z * cos(ROTATE_STEP);
-            vadd(t, t, camera.orig);
+            addVectors3(t, t, camera.origin);
             camera.target = t;
             ReInit(0);
             break;
