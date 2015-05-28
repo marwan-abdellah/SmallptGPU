@@ -24,6 +24,7 @@ extern void updateCamera();
 void glPrintString(void *font, const char *string);
 
 void glKeyboard(unsigned char key, int x, int y);
+void glSpecial(int key, int x, int y);
 
 
 

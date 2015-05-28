@@ -25,6 +25,12 @@ Unsupported Platform !!!
 #include "GLKeyboardDefines.hh"
 #include "GLContext.h"
 
+extern Sphere *spheres;
+extern unsigned int sphereCount;
+
+
+static int currentSphere;
+
 /**
  * @brief glKeyboard
  * @param key
@@ -149,6 +155,63 @@ void glKeyboard(unsigned char key, int x, int y)
         break;
     case 'h':
         g_printHelp = (!g_printHelp);
+        break;
+    default:
+        break;
+    }
+}
+
+
+void glSpecial(int key, int x, int y)
+{
+    switch (key) {
+    case GLUT_KEY_UP: {
+        Vector3 t = g_camera.target;
+        subtractVectors3(t, t, g_camera.origin);
+        t.y = t.y * cos(-ROTATE_STEP) + t.z * sin(-ROTATE_STEP);
+        t.z = -t.y * sin(-ROTATE_STEP) + t.z * cos(-ROTATE_STEP);
+        addVectors3(t, t, g_camera.origin);
+        g_camera.target = t;
+        reInit(0);
+        break;
+    }
+    case GLUT_KEY_DOWN: {
+        Vector3 t = g_camera.target;
+        subtractVectors3(t, t, g_camera.origin);
+        t.y = t.y * cos(ROTATE_STEP) + t.z * sin(ROTATE_STEP);
+        t.z = -t.y * sin(ROTATE_STEP) + t.z * cos(ROTATE_STEP);
+        addVectors3(t, t, g_camera.origin);
+        g_camera.target = t;
+        reInit(0);
+        break;
+    }
+    case GLUT_KEY_LEFT: {
+        Vector3 t = g_camera.target;
+        subtractVectors3(t, t, g_camera.origin);
+        t.x = t.x * cos(-ROTATE_STEP) - t.z * sin(-ROTATE_STEP);
+        t.z = t.x * sin(-ROTATE_STEP) + t.z * cos(-ROTATE_STEP);
+        addVectors3(t, t, g_camera.origin);
+        g_camera.target = t;
+        reInit(0);
+        break;
+    }
+    case GLUT_KEY_RIGHT: {
+        Vector3 t = g_camera.target;
+        subtractVectors3(t, t, g_camera.origin);
+        t.x = t.x * cos(ROTATE_STEP) - t.z * sin(ROTATE_STEP);
+        t.z = t.x * sin(ROTATE_STEP) + t.z * cos(ROTATE_STEP);
+        addVectors3(t, t, g_camera.origin);
+        g_camera.target = t;
+        reInit(0);
+        break;
+    }
+    case GLUT_KEY_PAGE_UP:
+        g_camera.target.y += MOVE_STEP;
+        reInit(0);
+        break;
+    case GLUT_KEY_PAGE_DOWN:
+        g_camera.target.y -= MOVE_STEP;
+        reInit(0);
         break;
     default:
         break;
