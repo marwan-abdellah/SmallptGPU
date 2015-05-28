@@ -26,7 +26,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "Camera.hh"
 #include "geomfunc.h"
 
-static void GenerateCameraRay(__constant Camera *camera,
+static void GenerateCameraRay(__constant Camera *g_camera,
         unsigned int *seed0, unsigned int *seed1,
         const int width, const int height, const int x, const int y, Ray *ray) {
     const float invWidth = 1.f / width;
@@ -42,9 +42,9 @@ static void GenerateCameraRay(__constant Camera *camera,
 //               camera->x.z * kcx + camera->y.z * kcy + camera->dir.z);
 
     initVector3(rdir,
-            camera->x.x * kcx + camera->y.x * kcy + camera->direction.x,
-            camera->x.y * kcx + camera->y.y * kcy + camera->direction.y,
-            camera->x.z * kcx + camera->y.z * kcy + camera->direction.z);
+            g_camera->x.x * kcx + g_camera->y.x * kcy + g_camera->direction.x,
+            g_camera->x.y * kcx + g_camera->y.y * kcy + g_camera->direction.y,
+            g_camera->x.z * kcx + g_camera->y.z * kcy + g_camera->direction.z);
 
     Vector3 rorig;
 
@@ -57,18 +57,18 @@ static void GenerateCameraRay(__constant Camera *camera,
 //    rorigx.z = rorig.z;
 
     // addToVector(&rorig, camera->orig);
-    addVectors3(rorig, rorig, camera->origin);
+    addVectors3(rorig, rorig, g_camera->origin);
 
     // addToVector3(&rorig, camera->orig);
 
 
     normVector3(rdir);
-    rinit(*ray, rorig, rdir);
+    initRay(*ray, rorig, rdir);
 }
 
 __kernel void RadianceGPU(
     __global Vector3 *colors, __global unsigned int *seedsInput,
-    __constant Sphere *sphere, __constant Camera *camera,
+    __constant Sphere *sphere, __constant Camera *g_camera,
     const unsigned int sphereCount,
     const int width, const int height,
     const int currentSample,
@@ -88,7 +88,7 @@ __kernel void RadianceGPU(
     unsigned int seed1 = seedsInput[gid2 + 1];
 
     Ray ray;
-    GenerateCameraRay(camera, &seed0, &seed1, width, height, x, y, &ray);
+    GenerateCameraRay(g_camera, &seed0, &seed1, width, height, x, y, &ray);
 
     Vector3 r;
     Radiance(sphere, sphereCount, renderingFlags, &ray, &seed0, &seed1, &r);

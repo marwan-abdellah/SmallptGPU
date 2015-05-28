@@ -26,11 +26,22 @@ INCLUDE_DIRECTORIES( ${OPENCL_INCLUDE_DIR} )
 LINK_LIBRARIES(${OPENCL_LIBRARY})
 
 SET(SRC_FILES
+    ApplicationData.c
+    ApplicationData.h
+    ApplicationData.hpp
     Camera.hh
-        displayfunc.c
-        vec.h
+    Externs.hpp
+    Ray.hh
+    Sphere.hh
+    GLContext.c
+    GLContext.h
+    GLKeyboard.c
+    GLKeyboardDefines.hh
+    GLUtilities.c
+    Typedefs.hh
+    Profiler.c
+    Profiler.h
         geom.h
-        displayfunc.h
         simplernd.h
         scene.h
         geomfunc.h

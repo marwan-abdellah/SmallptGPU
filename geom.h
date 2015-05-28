@@ -24,27 +24,17 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef _GEOM_H
 #define	_GEOM_H
 
-#include "vec.h"
+#include "Vector3.hh"
+#include "Defines.hh"
 
-#define EPSILON 0.01f
-#define FLOAT_PI 3.14159265358979323846f
 
-typedef struct {
-	Vector3 o, d;
-} Ray;
 
-#define rinit(r, a, b) { assignVector3((r).o, a); assignVector3((r).d, b); }
-#define rassign(a, b) { assignVector3((a).o, (b).o); assignVector3((a).d, (b).d); }
 
 enum Refl {
-	DIFF, SPEC, REFR
+    DIFF, SPEC, REFR
 }; /* material types, used in radiance() */
 
-typedef struct {
-	float rad; /* radius */
-	Vector3 p, e, c; /* position, emission, color */
-	enum Refl refl; /* reflection type (DIFFuse, SPECular, REFRactive) */
-} Sphere;
+
 
 #endif	/* _GEOM_H */
 

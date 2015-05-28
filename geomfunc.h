@@ -14,7 +14,7 @@ in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+MERCHANTABILITY, FITNESS FOR A PAR  TICULAR PURPOSE AND NONINFRINGEMENT.
 IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
 CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
@@ -26,6 +26,10 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "geom.h"
 #include "simplernd.h"
+#include "Defines.hh"
+#include "Math.hh"
+#include "Sphere.hh"
+#include "Ray.hh"
 
 #ifndef SMALLPT_GPU
 
@@ -36,10 +40,10 @@ __constant
     const Sphere *s,
     const Ray *r) { /* returns distance, 0 if nohit */
     Vector3 op; /* Solve t^2*d.d + 2*t*(o-p).d + (o-p).(o-p)-R^2 = 0 */
-    subtractVectors3(op, s->p, r->o);
+    subtractVectors3(op, s->position, r->o);
 
     float b = dotVectors3(op, r->d);
-    float det = b * b - dotVectors3(op, op) + s->rad * s->rad;
+    float det = b * b - dotVectors3(op, op) + s->radius * s->radius;
     if (det < 0.f)
         return 0.f;
     else
@@ -128,7 +132,7 @@ __constant
 __constant
 #endif
         const Sphere *light = &spheres[i];
-        if (!isVector3Zero(light->e)) {
+        if (!isVector3Zero(light->emission)) {
             /* It is a light source */
             Ray shadowRay;
             shadowRay.o = *hitPoint;
@@ -137,8 +141,8 @@ __constant
             Vector3 unitSpherePoint;
             UniformSampleSphere(GetRandom(seed0, seed1), GetRandom(seed0, seed1), &unitSpherePoint);
             Vector3 spherePoint;
-            multiplyVector3Const(spherePoint, light->rad, unitSpherePoint);
-            addVectors3(spherePoint, spherePoint, light->p);
+            multiplyVector3Const(spherePoint, light->radius, unitSpherePoint);
+            addVectors3(spherePoint, spherePoint, light->position);
 
             /* Build the shadow ray direction */
             subtractVectors3(shadowRay.d, spherePoint, *hitPoint);
@@ -155,8 +159,8 @@ __constant
             /* Check if the light is visible */
             const float wi = dotVectors3(shadowRay.d, *normal);
             if ((wi > 0.f) && (!IntersectP(spheres, sphereCount, &shadowRay, len - EPSILON))) {
-                Vector3 c; assignVector3(c, light->e);
-                const float s = (4.f * FLOAT_PI * light->rad * light->rad) * wi * wo / (len *len);
+                Vector3 c; assignVector3(c, light->emission);
+                const float s = (4.f * FLOAT_PI * light->radius * light->radius) * wi * wo / (len *len);
                 multiplyVector3Const(c, s, c);
                 addVectors3(*result, *result, c);
             }
@@ -174,7 +178,7 @@ __constant
     const Ray *startRay,
     unsigned int *seed0, unsigned int *seed1,
     Vector3 *result) {
-    Ray currentRay; rassign(currentRay, *startRay);
+    Ray currentRay; assignRay(currentRay, *startRay);
     Vector3 rad; initVector3(rad, 0.f, 0.f, 0.f);
     Vector3 throughput; initVector3(throughput, 1.f, 1.f, 1.f);
 
@@ -204,7 +208,7 @@ __constant
         addVectors3(hitPoint, currentRay.o, hitPoint);
 
         Vector3 normal;
-        subtractVectors3(normal, hitPoint, obj->p);
+        subtractVectors3(normal, hitPoint, obj->position);
         normVector3(normal);
 
         float dp = dotVectors3(normal, currentRay.d);
@@ -218,7 +222,7 @@ __constant
         }
 
         /* Add emitted light */
-        Vector3 eCol; assignVector3(eCol, obj->e);
+        Vector3 eCol; assignVector3(eCol, obj->emission);
         if (!isVector3Zero(eCol)) {
             if (specularBounce) {
                 multiplyVector3Const(eCol, fabs(dp), eCol);
@@ -230,9 +234,9 @@ __constant
             return;
         }
 
-        if (obj->refl == DIFF) { /* Ideal DIFFUSE reflection */
+        if (obj->reflection == DIFF) { /* Ideal DIFFUSE reflection */
             specularBounce = 0;
-            multiplyVectors3(throughput, throughput, obj->c);
+            multiplyVectors3(throughput, throughput, obj->color);
 
             /* Direct lighting component */
 
@@ -284,16 +288,16 @@ __constant
             currentRay.o = hitPoint;
             currentRay.d = newDir;
             continue;
-        } else if (obj->refl == SPEC) { /* Ideal SPECULAR reflection */
+        } else if (obj->reflection == SPEC) { /* Ideal SPECULAR reflection */
             specularBounce = 1;
 
             Vector3 newDir;
             multiplyVector3Const(newDir,  2.f * dotVectors3(normal, currentRay.d), normal);
             subtractVectors3(newDir, currentRay.d, newDir);
 
-            multiplyVectors3(throughput, throughput, obj->c);
+            multiplyVectors3(throughput, throughput, obj->color);
 
-            rinit(currentRay, hitPoint, newDir);
+            initRay(currentRay, hitPoint, newDir);
             continue;
         } else {
             specularBounce = 1;
@@ -302,7 +306,7 @@ __constant
             multiplyVector3Const(newDir,  2.f * dotVectors3(normal, currentRay.d), normal);
             subtractVectors3(newDir, currentRay.d, newDir);
 
-            Ray reflRay; rinit(reflRay, hitPoint, newDir); /* Ideal dielectric REFRACTION */
+            Ray reflRay; initRay(reflRay, hitPoint, newDir); /* Ideal dielectric REFRACTION */
             int into = (dotVectors3(normal, nl) > 0); /* Ray from outside going in? */
 
             float nc = 1.f;
@@ -312,9 +316,9 @@ __constant
             float cos2t = 1.f - nnt * nnt * (1.f - ddn * ddn);
 
             if (cos2t < 0.f)  { /* Total internal reflection */
-                multiplyVectors3(throughput, throughput, obj->c);
+                multiplyVectors3(throughput, throughput, obj->color);
 
-                rassign(currentRay, reflRay);
+                assignRay(currentRay, reflRay);
                 continue;
             }
 
@@ -339,15 +343,15 @@ __constant
 
             if (GetRandom(seed0, seed1) < P) { /* R.R. */
                 multiplyVector3Const(throughput, RP, throughput);
-                multiplyVectors3(throughput, throughput, obj->c);
+                multiplyVectors3(throughput, throughput, obj->color);
 
-                rassign(currentRay, reflRay);
+                assignRay(currentRay, reflRay);
                 continue;
             } else {
                 multiplyVector3Const(throughput, TP, throughput);
-                multiplyVectors3(throughput, throughput, obj->c);
+                multiplyVectors3(throughput, throughput, obj->color);
 
-                rinit(currentRay, hitPoint, transDir);
+                initRay(currentRay, hitPoint, transDir);
                 continue;
             }
         }

@@ -35,13 +35,14 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "Camera.hh"
 #include "scene.h"
-#include "displayfunc.h"
+#include "GLContext.h"
+#include "Externs.hpp"
 
 int workGroupSize = 1;
 
 static Vector3 *colors;
 static unsigned int *seeds;
-Camera camera;
+Camera g_camera;
 static int currentSample = 0;
 Sphere *spheres;
 unsigned int sphereCount;
@@ -49,11 +50,11 @@ unsigned int sphereCount;
 void FreeBuffers() {
     free(seeds);
     free(colors);
-    free(pixels);
+    free(g_pixels);
 }
 
 void AllocateBuffers() {
-    const int pixelCount = height * width ;
+    const int pixelCount = g_windowWidth * g_windowHeight;
     int i;
     colors = (Vector3*)malloc(sizeof(Vector3)*pixelCount);
 
@@ -64,19 +65,19 @@ void AllocateBuffers() {
             seeds[i] = 2;
     }
 
-    pixels = (unsigned int*)malloc(sizeof(unsigned int)* pixelCount);
+    g_pixels = (unsigned int*)malloc(sizeof(unsigned int)* pixelCount);
 }
 
-void UpdateRendering(void) {
-    double startTime = WallClockTime();
+void updateRendering(void) {
+    double startTime = profileCurrentStep();
 
-    const float invWidth = 1.f / width;
-    const float invHeight = 1.f / height;
+    const float invWidth = 1.f / g_windowWidth;
+    const float invHeight = 1.f / g_windowHeight;
 
     int x, y;
-    for (y = 0; y < height; y++) { /* Loop over image rows */
-        for (x = 0; x < width; x++) { /* Loop cols */
-            const int i = (height - y - 1) * width + x;
+    for (y = 0; y < g_windowHeight; y++) { /* Loop over image rows */
+        for (x = 0; x < g_windowWidth; x++) { /* Loop cols */
+            const int i = (g_windowHeight - y - 1) * g_windowWidth + x;
             const int i2 = 2 * i;
 
             const float r1 = GetRandom(&seeds[i2], &seeds[i2 + 1]) - .5f;
@@ -86,13 +87,13 @@ void UpdateRendering(void) {
 
             Vector3 rdir;
             initVector3(rdir,
-                camera.x.x * kcx + camera.y.x * kcy + camera.direction.x,
-                camera.x.y * kcx + camera.y.y * kcy + camera.direction.y,
-                camera.x.z * kcx + camera.y.z * kcy + camera.direction.z);
+                g_camera.x.x * kcx + g_camera.y.x * kcy + g_camera.direction.x,
+                g_camera.x.y * kcx + g_camera.y.y * kcy + g_camera.direction.y,
+                g_camera.x.z * kcx + g_camera.y.z * kcy + g_camera.direction.z);
 
             Vector3 rorig;
             multiplyVector3Const(rorig, 0.1f, rdir);
-            addVectors3(rorig, rorig, camera.origin)
+            addVectors3(rorig, rorig, g_camera.origin)
 
             normVector3(rdir);
             const Ray ray = {rorig, rdir};
@@ -110,56 +111,58 @@ void UpdateRendering(void) {
                 colors[i].z = (colors[i].z * k1 + r.z) * k2;
             }
 
-            pixels[y * width + x] = toInt(colors[i].x) |
+            g_pixels[y * g_windowWidth + x] = toInt(colors[i].x) |
                     (toInt(colors[i].y) << 8) |
                     (toInt(colors[i].z) << 16);
         }
     }
 
-    const float elapsedTime = WallClockTime() - startTime;
-    const float sampleSec = height * width / elapsedTime;
+    const float elapsedTime = profileCurrentStep() - startTime;
+    const float sampleSec = g_windowHeight * g_windowWidth / elapsedTime;
     sprintf(captionBuffer, "Rendering time %.3f sec (pass %d)  Sample/sec  %.1fK\n",
         elapsedTime, currentSample, sampleSec / 1000.f);
 
     currentSample++;
 }
 
-void ReInitScene() {
+void reInitScene() {
     currentSample = 0;
 }
 
-void ReInit(const int reallocBuffers) {
+void reInit(const int reallocBuffers) {
     // Check if I have to reallocate buffers
     if (reallocBuffers) {
         FreeBuffers();
         AllocateBuffers();
     }
 
-    UpdateCamera();
+    updateCamera();
     currentSample = 0;
-    UpdateRendering();
+    updateRendering();
 }
 
-int main(int argc, char *argv[]) {
-    amiSmallptCPU = 1;
+int main(int argc, char *argv[])
+{
+    // The code will run on the CPU.
+    g_device = CPU;
 
     fprintf(stderr, "Usage: %s\n", argv[0]);
     fprintf(stderr, "Usage: %s <window width> <window height> <scene file>\n", argv[0]);
 
     if (argc == 4) {
-        width = atoi(argv[1]);
-        height = atoi(argv[2]);
-        ReadScene(argv[3]);
+        g_windowWidth = atoi(argv[1]);
+        g_windowHeight = atoi(argv[2]);
+        readScene(argv[3]);
     } else if (argc == 1) {
         spheres = CornellSpheres;
         sphereCount = sizeof(CornellSpheres) / sizeof(Sphere);
 
-        initVector3(camera.origin, 50.f, 45.f, 205.6f);
-        initVector3(camera.target, 50.f, 45 - 0.042612f, 204.6);
+        initVector3(g_camera.origin, 50.f, 45.f, 205.6f);
+        initVector3(g_camera.target, 50.f, 45 - 0.042612f, 204.6);
     } else
         exit(-1);
 
-    UpdateCamera();
+    updateCamera();
 
     /*------------------------------------------------------------------------*/
 
@@ -167,7 +170,7 @@ int main(int argc, char *argv[]) {
 
     /*------------------------------------------------------------------------*/
 
-    InitGlut(argc, argv, "SmallPT CPU V1.6alpha (Written by David Bucciarelli)");
+    initializeGLUT(argc, argv, "SmallPT CPU V1.6alpha (Written by David Bucciarelli)");
 
     glutMainLoop( );
 

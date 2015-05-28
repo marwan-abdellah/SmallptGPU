@@ -1,0 +1,33 @@
+#ifndef GLKEYBOARDDEFINES_HH
+#define GLKEYBOARDDEFINES_HH
+
+#define MOVE_STEP 10.0f
+#define ROTATE_STEP (2.f * M_PI / 180.f)
+
+#define PRINT_HELP 'h'
+
+#define MOVE_CAMERA_FORWARD ''
+
+#define MOVE_CAMERA_BACKWARD ''
+
+#define MOVE_CAMERA_UP ''
+
+#define MOVE_CAMERA_DOWN ''
+
+#define MOVE_CAMERA_LEFT ''
+
+#define MOVE_CAMERA_RIGHT ''
+
+#define ROTATE_CAMERA_LEFT ''
+
+#define ROTATE_CAMERA_RIGHT ''
+
+#define ROTATE_CAMERA_UP ''
+
+#define ROTATE_CAMERA_DOWN ''
+
+#define MOVE_CAMERA_TARGET_UP ''
+
+#define MOVE_CAMERA_TARGET_DOWN ''
+
+#endif // GLKEYBOARDDEFINES_HH

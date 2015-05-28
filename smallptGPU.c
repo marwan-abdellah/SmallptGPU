@@ -42,7 +42,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "Camera.hh"
 #include "scene.h"
-#include "displayfunc.h"
+#include "GLContext.h"
+#include "Externs.hpp"
 
 /* Options */
 static int useGPU = 1;
@@ -63,7 +64,7 @@ static char *kernelFileName = "rendering_kernel.cl";
 
 static Vector3 *colors;
 static unsigned int *seeds;
-Camera camera;
+Camera g_camera;
 static int currentSample = 0;
 Sphere *spheres;
 unsigned int sphereCount;
@@ -89,11 +90,11 @@ static void FreeBuffers() {
 
     free(seeds);
     free(colors);
-    free(pixels);
+    free(g_pixels);
 }
 
 static void AllocateBuffers() {
-    const int pixelCount = width * height;
+    const int pixelCount = g_windowWidth * g_windowHeight;
     int i;
     colors = (Vector3 *)malloc(sizeof(Vector3) * pixelCount);
 
@@ -104,10 +105,10 @@ static void AllocateBuffers() {
             seeds[i] = 2;
     }
 
-    pixels = (unsigned int *)malloc(sizeof(unsigned int) * pixelCount);
+    g_pixels = (unsigned int *)malloc(sizeof(unsigned int) * pixelCount);
 
     cl_int status;
-    cl_uint sizeBytes = sizeof(Vector3) * width * height;
+    cl_uint sizeBytes = sizeof(Vector3) * g_windowWidth * g_windowHeight;
     colorBuffer = clCreateBuffer(
             context,
             CL_MEM_READ_WRITE,
@@ -119,7 +120,7 @@ static void AllocateBuffers() {
         exit(-1);
     }
 
-    sizeBytes = sizeof(unsigned char[4]) * width * height;
+    sizeBytes = sizeof(unsigned char[4]) * g_windowWidth * g_windowHeight;
     pixelBuffer = clCreateBuffer(
             context,
             CL_MEM_WRITE_ONLY,
@@ -131,7 +132,7 @@ static void AllocateBuffers() {
         exit(-1);
     }
 
-    sizeBytes = sizeof(unsigned int) * width * height * 2;
+    sizeBytes = sizeof(unsigned int) *  g_windowWidth * g_windowHeight * 2;
     seedBuffer = clCreateBuffer(
             context,
             CL_MEM_READ_WRITE,
@@ -147,7 +148,7 @@ static void AllocateBuffers() {
             seedBuffer,
             CL_TRUE,
             0,
-            sizeof(unsigned int) * width * height * 2,
+            sizeof(unsigned int) *  g_windowWidth * g_windowHeight * 2,
             seeds,
             0,
             NULL,
@@ -505,7 +506,7 @@ static void SetUpOpenCL() {
             CL_TRUE,
             0,
             sizeof(Camera),
-            &camera,
+            &g_camera,
             0,
             NULL,
             NULL);
@@ -597,7 +598,7 @@ static void SetUpOpenCL() {
 static void ExecuteKernel() {
     /* Enqueue a kernel run call */
     size_t globalThreads[1];
-    globalThreads[0] = width * height;
+    globalThreads[0] =  g_windowWidth * g_windowHeight;
     if (globalThreads[0] % workGroupSize != 0)
         globalThreads[0] = (globalThreads[0] / workGroupSize + 1) * workGroupSize;
     size_t localThreads[1];
@@ -619,8 +620,8 @@ static void ExecuteKernel() {
     }
 }
 
-void UpdateRendering() {
-    double startTime = WallClockTime();
+void updateRendering() {
+    double startTime = profileCurrentStep();
     int startSampleCount = currentSample;
 
     /* Set kernel arguments */
@@ -678,7 +679,7 @@ void UpdateRendering() {
             kernel,
             5,
             sizeof(int),
-            (void *)&width);
+            (void *)&g_windowWidth);
     if (status != CL_SUCCESS) {
         fprintf(stderr, "Failed to set OpenCL arg. #6: %d\n", status);
         exit(-1);
@@ -688,7 +689,7 @@ void UpdateRendering() {
             kernel,
             6,
             sizeof(int),
-            (void *)&height);
+            (void *)&g_windowHeight);
     if (status != CL_SUCCESS) {
         fprintf(stderr, "Failed to set OpenCL arg. #7: %d\n", status);
         exit(-1);
@@ -738,7 +739,7 @@ void UpdateRendering() {
             clFinish(commandQueue);
             currentSample++;
 
-            const float elapsedTime = WallClockTime() - startTime;
+            const float elapsedTime = profileCurrentStep() - startTime;
             if (elapsedTime > tresholdTime)
                 break;
         }
@@ -752,8 +753,8 @@ void UpdateRendering() {
             pixelBuffer,
             CL_TRUE,
             0,
-            width * height * sizeof(unsigned int),
-            pixels,
+             g_windowWidth * g_windowHeight * sizeof(unsigned int),
+            g_pixels,
             0,
             NULL,
             NULL);
@@ -764,14 +765,14 @@ void UpdateRendering() {
 
     /*------------------------------------------------------------------------*/
 
-    const double elapsedTime = WallClockTime() - startTime;
+    const double elapsedTime = profileCurrentStep() - startTime;
     const int samples = currentSample - startSampleCount;
-    const double sampleSec = samples * height * width / elapsedTime;
+    const double sampleSec = samples * g_windowWidth * g_windowHeight / elapsedTime;
     sprintf(captionBuffer, "Rendering time %.3f sec (pass %d)  Sample/sec  %.1fK\n",
             elapsedTime, currentSample, sampleSec / 1000.f);
 }
 
-void ReInitScene() {
+void reInitScene() {
     currentSample = 0;
 
     // Redownload the scene
@@ -792,14 +793,14 @@ void ReInitScene() {
     }
 }
 
-void ReInit(const int reallocBuffers) {
+void reInit(const int reallocBuffers) {
     // Check if I have to reallocate buffers
     if (reallocBuffers) {
         FreeBuffers();
-        UpdateCamera();
+        updateCamera();
         AllocateBuffers();
     } else {
-        UpdateCamera();
+        updateCamera();
 
 
     }
@@ -810,7 +811,7 @@ void ReInit(const int reallocBuffers) {
             CL_TRUE,
             0,
             sizeof(Camera),
-            &camera,
+            &g_camera,
             0,
             NULL,
             NULL);
@@ -823,7 +824,9 @@ void ReInit(const int reallocBuffers) {
 }
 
 int main(int argc, char *argv[]) {
-    amiSmallptCPU = 0;
+
+    // The code will run on the GPU.
+    g_device = GPU;
 
     fprintf(stderr, "Usage: %s\n", argv[0]);
     fprintf(stderr, "Usage: %s <use CPU/GPU device (0=CPU or 1=GPU)> <workgroup size (0=default value or anything > 0 and power of 2)> <kernel file name> <window width> <window height> <scene file>\n", argv[0]);
@@ -832,19 +835,19 @@ int main(int argc, char *argv[]) {
         useGPU = atoi(argv[1]);
         forceWorkSize = atoi(argv[2]);
         kernelFileName = argv[3];
-        width = atoi(argv[4]);
-        height = atoi(argv[5]);
-        ReadScene(argv[6]);
+        g_windowWidth = atoi(argv[4]);
+        g_windowHeight = atoi(argv[5]);
+        readScene(argv[6]);
     } else if (argc == 1) {
         spheres = CornellSpheres;
         sphereCount = sizeof(CornellSpheres) / sizeof(Sphere);
 
-        initVector3(camera.origin, 50.f, 45.f, 205.6f);
-        initVector3(camera.target, 50.f, 45 - 0.042612f, 204.6);
+        initVector3(g_camera.origin, 50.f, 45.f, 205.6f);
+        initVector3(g_camera.target, 50.f, 45 - 0.042612f, 204.6);
     } else
         exit(-1);
 
-    UpdateCamera();
+    updateCamera();
 
     /*------------------------------------------------------------------------*/
 
@@ -852,7 +855,7 @@ int main(int argc, char *argv[]) {
 
     /*------------------------------------------------------------------------*/
 
-    InitGlut(argc, argv, "SmallPT GPU V1.6alpha (Written by David Bucciarelli)");
+    initializeGLUT(argc, argv, "SmallPT GPU V1.6alpha (Written by David Bucciarelli)");
 
     glutMainLoop();
 
