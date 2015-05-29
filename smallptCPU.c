@@ -117,7 +117,7 @@ void updateRendering(void) {
         }
     }
 
-    const float elapsedTime = profileCurrentStep() - startTime;
+    const float elapsedTime = profileCurrentStep () - startTime;
     const float sampleSec = g_windowHeight * g_windowWidth / elapsedTime;
     sprintf(captionBuffer, "Rendering time %.3f sec (pass %d)  Sample/sec  %.1fK\n",
         elapsedTime, currentSample, sampleSec / 1000.f);

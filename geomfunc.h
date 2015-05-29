@@ -361,4 +361,3 @@ __constant
 #endif
 
 #endif	/* _GEOMFUNC_H */
-

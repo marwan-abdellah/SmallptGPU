@@ -41,9 +41,14 @@ SET(SRC_FILES
     Typedefs.hh
     Profiler.c
     Profiler.h
+    scene.h
+    SceneReader.c
+    SceneReader.h
+    Light.hpp
+    MonteCarlo.hpp
+
         geom.h
         simplernd.h
-        scene.h
         geomfunc.h
         Vector3.hh
         Math.hh

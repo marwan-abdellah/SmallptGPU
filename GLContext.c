@@ -1,7 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #ifdef WIN32
 #define _USE_MATH_DEFINES
 #endif
@@ -14,6 +10,10 @@
 #else
 Unsupported Platform !!!
 #endif
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "Camera.hh"
 #include "Defines.hh"
@@ -36,18 +36,15 @@ char captionBuffer[256];
 
 static int currentSphere;
 
-
-
-
-
 /**
  * @brief glPrintHelp
  */
 static void glPrintHelp()
 {
+    // Blend the help message on top of the rendered frame
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glColor4f(0.f, 0.f, 0.5f, 0.5f);
+    glColor4f(0.5f, 0.5f, 0.5f, 0.5f);
     glRecti(40, 40, 600, 440);
 
     glColor3f(1.f, 1.f, 1.f);
@@ -74,70 +71,11 @@ static void glPrintHelp()
     glDisable(GL_BLEND);
 }
 
-void readScene(char *fileName) {
-    FILE *f;
-    fprintf(stderr, "Reading scene: %s\n", fileName);
-
-    f = fopen(fileName, "r");
-    if (!f) {
-        fprintf(stderr, "Failed to open file: %s\n", fileName);
-        exit(-1);
-    }
-
-    /* Read the camera position */
-    int c = fscanf(f,"camera %f %f %f  %f %f %f\n",
-                   &g_camera.origin.x, &g_camera.origin.y, &g_camera.origin.z,
-                   &g_camera.target.x, &g_camera.target.y, &g_camera.target.z);
-    if (c != 6) {
-        fprintf(stderr, "Failed to read 6 camera parameters: %d\n", c);
-        exit(-1);
-    }
-
-    /* Read the sphere count */
-    c = fscanf(f,"size %u\n", &sphereCount);
-    if (c != 1) {
-        fprintf(stderr, "Failed to read sphere count: %d\n", c);
-        exit(-1);
-    }
-    fprintf(stderr, "Scene size: %d\n", sphereCount);
-
-    /* Read all spheres */
-    spheres = (Sphere *)malloc(sizeof(Sphere) * sphereCount);
-    unsigned int i;
-    for (i = 0; i < sphereCount; i++) {
-        Sphere *s = &spheres[i];
-        int mat;
-        int c = fscanf(f,"sphere %f  %f %f %f  %f %f %f  %f %f %f  %d\n",
-                       &s->radius,
-                       &s->position.x, &s->position.y, &s->position.z,
-                       &s->emission.x, &s->emission.y, &s->emission.z,
-                       &s->color.x, &s->color.y, &s->color.z,
-                       &mat);
-        switch (mat) {
-        case 0:
-            s->reflection = DIFF;
-            break;
-        case 1:
-            s->reflection = SPEC;
-            break;
-        case 2:
-            s->reflection = REFR;
-            break;
-        default:
-            fprintf(stderr, "Failed to read material type for sphere #%d: %d\n", i, mat);
-            exit(-1);
-            break;
-        }
-        if (c != 11) {
-            fprintf(stderr, "Failed to read sphere #%d: %d\n", i, c);
-            exit(-1);
-        }
-    }
-
-    fclose(f);
-}
-
-void updateCamera() {
+/**
+ * @brief updateCamera
+ */
+void updateCamera()
+{
     subtractVectors3(g_camera.direction, g_camera.target, g_camera.origin);
     normVector3(g_camera.direction);
 
@@ -145,7 +83,9 @@ void updateCamera() {
     const float fov = (M_PI / 180.f) * 45.f;
     crossVectors3(g_camera.x, g_camera.direction, up);
     normVector3(g_camera.x);
-    multiplyVector3Const(g_camera.x, g_windowWidth * fov / g_windowHeight, g_camera.x);
+    multiplyVector3Const(g_camera.x,
+                         g_windowWidth * fov / g_windowHeight,
+                         g_camera.x);
 
     crossVectors3(g_camera.y, g_camera.x, g_camera.direction);
     normVector3(g_camera.y);
@@ -228,11 +168,6 @@ void glReshape(int newWidth, int newHeight)
     // Render again
     glutPostRedisplay();
 }
-
-
-
-
-
 
 /**
  * @brief initializeGLUT

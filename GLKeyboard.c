@@ -39,7 +39,8 @@ static int currentSphere;
  */
 void glKeyboard(unsigned char key, int x, int y)
 {
-    switch (key) {
+    switch (key)
+    {
     case 'p': {
         FILE *f = fopen("image.ppm", "w"); // Write image to PPM file.
         if (!f) {
