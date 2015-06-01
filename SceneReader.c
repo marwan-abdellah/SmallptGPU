@@ -26,64 +26,81 @@ extern unsigned int sphereCount;
  */
 void readScene(char *fileName)
 {
-    FILE *f;
-    fprintf(stderr, "Reading scene: %s\n", fileName);
+    FILE *sceneFile;
+    fprintf(stderr, "Reading scene: %s \n", fileName);
 
-    f = fopen(fileName, "r");
-    if (!f) {
-        fprintf(stderr, "Failed to open file: %s\n", fileName);
+    // Open the file and parse the data
+    sceneFile = fopen(fileName, "r");
+    if (!sceneFile)
+    {
+        fprintf(stderr, "Failed to open file: %s \n", fileName);
         exit(-1);
     }
 
-    /* Read the camera position */
-    int c = fscanf(f,"camera %f %f %f  %f %f %f\n",
-                   &g_camera.origin.x, &g_camera.origin.y, &g_camera.origin.z,
-                   &g_camera.target.x, &g_camera.target.y, &g_camera.target.z);
-    if (c != 6) {
-        fprintf(stderr, "Failed to read 6 camera parameters: %d\n", c);
+    // Read the camera attributes
+    int attCount = fscanf
+            (sceneFile,"camera %f %f %f  %f %f %f\n",
+             &g_camera.origin.x, &g_camera.origin.y, &g_camera.origin.z,
+             &g_camera.target.x, &g_camera.target.y, &g_camera.target.z);
+
+    if (attCount != 6)
+    {
+        fprintf(stderr, "Failed to read 6 camera parameters: %d\n", attCount);
         exit(-1);
     }
 
-    /* Read the sphere count */
-    c = fscanf(f,"size %u\n", &sphereCount);
-    if (c != 1) {
-        fprintf(stderr, "Failed to read sphere count: %d\n", c);
+    // Read the sphere count
+    attCount = fscanf(sceneFile,"size %u \n", &sphereCount);
+    if (attCount != 1)
+    {
+        fprintf(stderr, "Failed to read sphere count: %d\n", attCount);
         exit(-1);
     }
     fprintf(stderr, "Scene size: %d\n", sphereCount);
 
-    /* Read all spheres */
-    spheres = (Sphere *)malloc(sizeof(Sphere) * sphereCount);
+    // Read all the attributes of the spheres
+    spheres = (Sphere*) malloc(sizeof(Sphere) * sphereCount);
     unsigned int i;
-    for (i = 0; i < sphereCount; i++) {
-        Sphere *s = &spheres[i];
-        int mat;
-        int c = fscanf(f,"sphere %f  %f %f %f  %f %f %f  %f %f %f  %d\n",
-                       &s->radius,
-                       &s->position.x, &s->position.y, &s->position.z,
-                       &s->emission.x, &s->emission.y, &s->emission.z,
-                       &s->color.x, &s->color.y, &s->color.z,
-                       &mat);
-        switch (mat) {
+    for (i = 0; i < sphereCount; i++)
+    {
+        Sphere *sphereList = &spheres[i];
+        int materialIdx;
+        attCount = fscanf(sceneFile,"sphere %f %f %f %f %f %f %f %f %f %f %d \n",
+                          &sphereList->radius,
+                          &sphereList->position.x,
+                          &sphereList->position.y,
+                          &sphereList->position.z,
+                          &sphereList->emission.x,
+                          &sphereList->emission.y,
+                          &sphereList->emission.z,
+                          &sphereList->color.x,
+                          &sphereList->color.y,
+                          &sphereList->color.z,
+                          &materialIdx);
+
+        switch (materialIdx)
+        {
         case 0:
-            s->reflection = DIFF;
+            sphereList->reflection = DIFF;
             break;
         case 1:
-            s->reflection = SPEC;
+            sphereList->reflection = SPEC;
             break;
         case 2:
-            s->reflection = REFR;
+            sphereList->reflection = REFR;
             break;
         default:
-            fprintf(stderr, "Failed to read material type for sphere #%d: %d\n", i, mat);
+            fprintf(stderr, "Failed to read material type for sphere #%d: %d\n",
+                    i, materialIdx);
             exit(-1);
             break;
         }
-        if (c != 11) {
-            fprintf(stderr, "Failed to read sphere #%d: %d\n", i, c);
+        if (attCount != 11)
+        {
+            fprintf(stderr, "Failed to read sphere #%d: %d\n", i, attCount);
             exit(-1);
         }
     }
 
-    fclose(f);
+    fclose(sceneFile);
 }

@@ -33,7 +33,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <string.h>
 #include <math.h>
 
-// Jens's patch for MacOS
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
 #else
@@ -50,12 +49,8 @@ static int useGPU = 1;
 static int forceWorkSize = 0;
 
 /* OpenCL variables */
-static cl_context context;
-static cl_mem colorBuffer;
-static cl_mem pixelBuffer;
-static cl_mem seedBuffer;
-static cl_mem sphereBuffer;
-static cl_mem cameraBuffer;
+
+
 static cl_command_queue commandQueue;
 static cl_program program;
 static cl_kernel kernel;
@@ -70,19 +65,19 @@ Sphere *spheres;
 unsigned int sphereCount;
 
 static void FreeBuffers() {
-    cl_int status = clReleaseMemObject(colorBuffer);
+    cl_int status = clReleaseMemObject(g_colorBufferCL);
     if (status != CL_SUCCESS) {
         fprintf(stderr, "Failed to release OpenCL color buffer: %d\n", status);
         exit(-1);
     }
 
-    status = clReleaseMemObject(pixelBuffer);
+    status = clReleaseMemObject(g_pixelBufferCL);
     if (status != CL_SUCCESS) {
         fprintf(stderr, "Failed to release OpenCL pixel buffer: %d\n", status);
         exit(-1);
     }
 
-    status = clReleaseMemObject(seedBuffer);
+    status = clReleaseMemObject(g_seedBufferCL);
     if (status != CL_SUCCESS) {
         fprintf(stderr, "Failed to release OpenCL seed buffer: %d\n", status);
         exit(-1);
@@ -109,8 +104,8 @@ static void AllocateBuffers() {
 
     cl_int status;
     cl_uint sizeBytes = sizeof(Vector3) * g_windowWidth * g_windowHeight;
-    colorBuffer = clCreateBuffer(
-            context,
+    g_colorBufferCL = clCreateBuffer(
+            g_clContext,
             CL_MEM_READ_WRITE,
             sizeBytes,
             NULL,
@@ -121,8 +116,8 @@ static void AllocateBuffers() {
     }
 
     sizeBytes = sizeof(unsigned char[4]) * g_windowWidth * g_windowHeight;
-    pixelBuffer = clCreateBuffer(
-            context,
+    g_pixelBufferCL = clCreateBuffer(
+            g_clContext,
             CL_MEM_WRITE_ONLY,
             sizeBytes,
             NULL,
@@ -133,8 +128,8 @@ static void AllocateBuffers() {
     }
 
     sizeBytes = sizeof(unsigned int) *  g_windowWidth * g_windowHeight * 2;
-    seedBuffer = clCreateBuffer(
-            context,
+    g_seedBufferCL = clCreateBuffer(
+            g_clContext,
             CL_MEM_READ_WRITE,
             sizeBytes,
             NULL,
@@ -145,7 +140,7 @@ static void AllocateBuffers() {
     }
     status = clEnqueueWriteBuffer(
             commandQueue,
-            seedBuffer,
+            g_seedBufferCL,
             CL_TRUE,
             0,
             sizeof(unsigned int) *  g_windowWidth * g_windowHeight * 2,
@@ -354,7 +349,7 @@ static void SetUpOpenCL() {
     };
 
     cl_context_properties *cprops = (NULL == platform) ? NULL : cps;
-    context = clCreateContext(
+    g_clContext = clCreateContext(
             cprops,
             1,
             &selectedDevice,
@@ -369,7 +364,7 @@ static void SetUpOpenCL() {
     /* Get the device list data */
     size_t deviceListSize;
     status = clGetContextInfo(
-            context,
+            g_clContext,
             CL_CONTEXT_DEVICES,
             32,
             devices,
@@ -454,7 +449,7 @@ static void SetUpOpenCL() {
 
     cl_command_queue_properties prop = 0;
     commandQueue = clCreateCommandQueue(
-            context,
+            g_clContext,
             devices[0],
             prop,
             &status);
@@ -465,8 +460,8 @@ static void SetUpOpenCL() {
 
     /*------------------------------------------------------------------------*/
 
-    sphereBuffer = clCreateBuffer(
-            context,
+    g_sphereBufferCL = clCreateBuffer(
+            g_clContext,
             CL_MEM_READ_ONLY,
             sizeof(Sphere) * sphereCount,
             NULL,
@@ -477,7 +472,7 @@ static void SetUpOpenCL() {
     }
     status = clEnqueueWriteBuffer(
             commandQueue,
-            sphereBuffer,
+            g_sphereBufferCL,
             CL_TRUE,
             0,
             sizeof(Sphere) * sphereCount,
@@ -490,8 +485,8 @@ static void SetUpOpenCL() {
         exit(-1);
     }
 
-    cameraBuffer = clCreateBuffer(
-            context,
+    g_cameraBufferCL = clCreateBuffer(
+            g_clContext,
             CL_MEM_READ_ONLY,
             sizeof(Camera),
             NULL,
@@ -502,7 +497,7 @@ static void SetUpOpenCL() {
     }
     status = clEnqueueWriteBuffer(
             commandQueue,
-            cameraBuffer,
+            g_cameraBufferCL,
             CL_TRUE,
             0,
             sizeof(Camera),
@@ -522,7 +517,7 @@ static void SetUpOpenCL() {
     /* Create the kernel program */
     const char *sources = ReadSources(kernelFileName);
     program = clCreateProgramWithSource(
-        context,
+        g_clContext,
         1,
         &sources,
         NULL,
@@ -629,7 +624,7 @@ void updateRendering() {
             kernel,
             0,
             sizeof(cl_mem),
-            (void *)&colorBuffer);
+            (void *)&g_colorBufferCL);
     if (status != CL_SUCCESS) {
         fprintf(stderr, "Failed to set OpenCL arg. #1: %d\n", status);
         exit(-1);
@@ -639,7 +634,7 @@ void updateRendering() {
             kernel,
             1,
             sizeof(cl_mem),
-            (void *)&seedBuffer);
+            (void *)&g_seedBufferCL);
     if (status != CL_SUCCESS) {
         fprintf(stderr, "Failed to set OpenCL arg. #2: %d\n", status);
         exit(-1);
@@ -649,7 +644,7 @@ void updateRendering() {
             kernel,
             2,
             sizeof(cl_mem),
-            (void *)&sphereBuffer);
+            (void *)&g_sphereBufferCL);
     if (status != CL_SUCCESS) {
         fprintf(stderr, "Failed to set OpenCL arg. #3: %d\n", status);
         exit(-1);
@@ -659,7 +654,7 @@ void updateRendering() {
             kernel,
             3,
             sizeof(cl_mem),
-            (void *)&cameraBuffer);
+            (void *)&g_cameraBufferCL);
     if (status != CL_SUCCESS) {
         fprintf(stderr, "Failed to set OpenCL arg. #4: %d\n", status);
         exit(-1);
@@ -709,7 +704,7 @@ void updateRendering() {
             kernel,
             8,
             sizeof(cl_mem),
-            (void *)&pixelBuffer);
+            (void *)&g_pixelBufferCL);
     if (status != CL_SUCCESS) {
         fprintf(stderr, "Failed to set OpenCL arg. #9: %d\n", status);
         exit(-1);
@@ -750,7 +745,7 @@ void updateRendering() {
     /* Enqueue readBuffer */
     status = clEnqueueReadBuffer(
             commandQueue,
-            pixelBuffer,
+            g_pixelBufferCL,
             CL_TRUE,
             0,
              g_windowWidth * g_windowHeight * sizeof(unsigned int),
@@ -779,7 +774,7 @@ void reInitScene() {
 
     cl_int status = clEnqueueWriteBuffer(
             commandQueue,
-            sphereBuffer,
+            g_sphereBufferCL,
             CL_TRUE,
             0,
             sizeof(Sphere) * sphereCount,
@@ -807,7 +802,7 @@ void reInit(const int reallocBuffers) {
 
     cl_int status = clEnqueueWriteBuffer(
             commandQueue,
-            cameraBuffer,
+            g_cameraBufferCL,
             CL_TRUE,
             0,
             sizeof(Camera),
@@ -839,8 +834,8 @@ int main(int argc, char *argv[]) {
         g_windowHeight = atoi(argv[5]);
         readScene(argv[6]);
     } else if (argc == 1) {
-        spheres = CornellSpheres;
-        sphereCount = sizeof(CornellSpheres) / sizeof(Sphere);
+        spheres = buildCornellBoxScene(); // CornellSpheres;
+        sphereCount = sizeof(spheres) / sizeof(Sphere);
 
         initVector3(g_camera.origin, 50.f, 45.f, 205.6f);
         initVector3(g_camera.target, 50.f, 45 - 0.042612f, 204.6);

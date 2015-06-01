@@ -30,62 +30,26 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "Math.hh"
 #include "Sphere.hh"
 #include "Ray.hh"
+#include "MonteCarlo.hpp"
 
 #ifndef SMALLPT_GPU
 
-static float SphereIntersect(
-#ifdef GPU_KERNEL
-__constant
-#endif
-    const Sphere *s,
-    const Ray *r) { /* returns distance, 0 if nohit */
-    Vector3 op; /* Solve t^2*d.d + 2*t*(o-p).d + (o-p).(o-p)-R^2 = 0 */
-    subtractVectors3(op, s->position, r->o);
 
-    float b = dotVectors3(op, r->d);
-    float det = b * b - dotVectors3(op, op) + s->radius * s->radius;
-    if (det < 0.f)
-        return 0.f;
-    else
-        det = sqrt(det);
-
-    float t = b - det;
-    if (t >  EPSILON)
-        return t;
-    else {
-        t = b + det;
-
-        if (t >  EPSILON)
-            return t;
-        else
-            return 0.f;
-    }
-}
-
-static void UniformSampleSphere(const float u1, const float u2, Vector3 *v) {
-    const float zz = 1.f - 2.f * u1;
-    const float r = sqrt(max(0.f, 1.f - zz * zz));
-    const float phi = 2.f * FLOAT_PI * u2;
-    const float xx = r * cos(phi);
-    const float yy = r * sin(phi);
-
-    initVector3(*v, xx, yy, zz);
-}
 
 static int Intersect(
-#ifdef GPU_KERNEL
-__constant
-#endif
-    const Sphere *spheres,
-    const unsigned int sphereCount,
-    const Ray *r,
-    float *t,
-    unsigned int *id) {
+        #ifdef GPU_KERNEL
+        __constant
+        #endif
+        const Sphere *spheres,
+        const unsigned int sphereCount,
+        const Ray *r,
+        float *t,
+        unsigned int *id) {
     float inf = (*t) = 1e20f;
 
     unsigned int i = sphereCount;
     for (; i--;) {
-        const float d = SphereIntersect(&spheres[i], r);
+        const float d = intersectSphere(&spheres[i], r);
         if ((d != 0.f) && (d < *t)) {
             *t = d;
             *id = i;
@@ -96,16 +60,16 @@ __constant
 }
 
 static int IntersectP(
-#ifdef GPU_KERNEL
-__constant
-#endif
-    const Sphere *spheres,
-    const unsigned int sphereCount,
-    const Ray *r,
-    const float maxt) {
+        #ifdef GPU_KERNEL
+        __constant
+        #endif
+        const Sphere *spheres,
+        const unsigned int sphereCount,
+        const Ray *r,
+        const float maxt) {
     unsigned int i = sphereCount;
     for (; i--;) {
-        const float d = SphereIntersect(&spheres[i], r);
+        const float d = intersectSphere(&spheres[i], r);
         if ((d != 0.f) && (d < maxt))
             return 1;
     }
@@ -114,24 +78,24 @@ __constant
 }
 
 static void SampleLights(
-#ifdef GPU_KERNEL
-__constant
-#endif
-    const Sphere *spheres,
-    const unsigned int sphereCount,
-    unsigned int *seed0, unsigned int *seed1,
-    const Vector3 *hitPoint,
-    const Vector3 *normal,
-    Vector3 *result) {
+        #ifdef GPU_KERNEL
+        __constant
+        #endif
+        const Sphere *spheres,
+        const unsigned int sphereCount,
+        unsigned int *seed0, unsigned int *seed1,
+        const Vector3 *hitPoint,
+        const Vector3 *normal,
+        Vector3 *result) {
     clearVector3(*result);
 
     /* For each light */
     unsigned int i;
     for (i = 0; i < sphereCount; i++) {
 #ifdef GPU_KERNEL
-__constant
-#endif
-        const Sphere *light = &spheres[i];
+        __constant
+        #endif
+                const Sphere *light = &spheres[i];
         if (!isVector3Zero(light->emission)) {
             /* It is a light source */
             Ray shadowRay;
@@ -169,15 +133,15 @@ __constant
 }
 
 static void Radiance(
-#ifdef GPU_KERNEL
-__constant
-#endif
-    const Sphere *spheres,
-    const unsigned int sphereCount,
-    const unsigned int renderingFlags,
-    const Ray *startRay,
-    unsigned int *seed0, unsigned int *seed1,
-    Vector3 *result) {
+        #ifdef GPU_KERNEL
+        __constant
+        #endif
+        const Sphere *spheres,
+        const unsigned int sphereCount,
+        const unsigned int renderingFlags,
+        const Ray *startRay,
+        unsigned int *seed0, unsigned int *seed1,
+        Vector3 *result) {
     Ray currentRay; assignRay(currentRay, *startRay);
     Vector3 rad; initVector3(rad, 0.f, 0.f, 0.f);
     Vector3 throughput; initVector3(throughput, 1.f, 1.f, 1.f);
@@ -199,9 +163,9 @@ __constant
         }
 
 #ifdef GPU_KERNEL
-__constant
-#endif
-        const Sphere *obj = &spheres[id]; /* the hit object */
+        __constant
+        #endif
+                const Sphere *obj = &spheres[id]; /* the hit object */
 
         Vector3 hitPoint;
         multiplyVector3Const(hitPoint, t, currentRay.d);
