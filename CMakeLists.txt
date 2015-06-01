@@ -47,10 +47,8 @@ SET(SRC_FILES
     MonteCarlo.hpp
     Scene.c
     Scene.h
-    CLContext.c
-    CLContext.h
-    CLUtilities.c
-    CLUtilities.h
+    CLContext.hh
+    CLUtilities.hh
 
         geom.h
         simplernd.h

@@ -43,6 +43,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "scene.h"
 #include "GLContext.h"
 #include "Externs.hpp"
+#include "CLContext.hh"
+#include "CLUtilities.hh"
 
 /* Options */
 static int useGPU = 1;
@@ -57,94 +59,45 @@ static cl_kernel kernel;
 static unsigned int workGroupSize = 1;
 static char *kernelFileName = "rendering_kernel.cl";
 
-static Vector3 *colors;
-static unsigned int *seeds;
-Camera g_camera;
+
 static int currentSample = 0;
 Sphere *spheres;
 unsigned int sphereCount;
 
-static void FreeBuffers() {
-    cl_int status = clReleaseMemObject(g_colorBufferCL);
-    if (status != CL_SUCCESS) {
-        fprintf(stderr, "Failed to release OpenCL color buffer: %d\n", status);
-        exit(-1);
-    }
 
-    status = clReleaseMemObject(g_pixelBufferCL);
-    if (status != CL_SUCCESS) {
-        fprintf(stderr, "Failed to release OpenCL pixel buffer: %d\n", status);
-        exit(-1);
-    }
 
-    status = clReleaseMemObject(g_seedBufferCL);
-    if (status != CL_SUCCESS) {
-        fprintf(stderr, "Failed to release OpenCL seed buffer: %d\n", status);
-        exit(-1);
-    }
-
-    free(seeds);
-    free(colors);
-    free(g_pixels);
-}
 
 static void AllocateBuffers() {
     const int pixelCount = g_windowWidth * g_windowHeight;
     int i;
-    colors = (Vector3 *)malloc(sizeof(Vector3) * pixelCount);
+    g_colors = (Vector3 *)malloc(sizeof(Vector3) * pixelCount);
 
-    seeds = (unsigned int *)malloc(sizeof(unsigned int) * pixelCount * 2);
+    g_seeds = (unsigned int *)malloc(sizeof(unsigned int) * pixelCount * 2);
     for (i = 0; i < pixelCount * 2; i++) {
-        seeds[i] = rand();
-        if (seeds[i] < 2)
-            seeds[i] = 2;
+        g_seeds[i] = rand();
+        if (g_seeds[i] < 2)
+            g_seeds[i] = 2;
     }
 
-    g_pixels = (unsigned int *)malloc(sizeof(unsigned int) * pixelCount);
+    g_pixels = (unsigned int *) malloc(sizeof(unsigned int) * pixelCount);
 
-    cl_int status;
     cl_uint sizeBytes = sizeof(Vector3) * g_windowWidth * g_windowHeight;
-    g_colorBufferCL = clCreateBuffer(
-            g_clContext,
-            CL_MEM_READ_WRITE,
-            sizeBytes,
-            NULL,
-            &status);
-    if (status != CL_SUCCESS) {
-        fprintf(stderr, "Failed to create OpenCL output buffer: %d\n", status);
-        exit(-1);
-    }
+    g_colorBufferCL = allocateCLBufferRW(g_clContext, sizeBytes);
 
     sizeBytes = sizeof(unsigned char[4]) * g_windowWidth * g_windowHeight;
-    g_pixelBufferCL = clCreateBuffer(
-            g_clContext,
-            CL_MEM_WRITE_ONLY,
-            sizeBytes,
-            NULL,
-            &status);
-    if (status != CL_SUCCESS) {
-        fprintf(stderr, "Failed to create OpenCL pixel buffer: %d\n", status);
-        exit(-1);
-    }
+    g_pixelBufferCL = allocateCLBufferW(g_clContext, sizeBytes);
 
     sizeBytes = sizeof(unsigned int) *  g_windowWidth * g_windowHeight * 2;
-    g_seedBufferCL = clCreateBuffer(
-            g_clContext,
-            CL_MEM_READ_WRITE,
-            sizeBytes,
-            NULL,
-            &status);
-    if (status != CL_SUCCESS) {
-        fprintf(stderr, "Failed to create OpenCL seed buffer: %d\n", status);
-        exit(-1);
-    }
+    g_seedBufferCL = allocateCLBufferW(g_clContext, sizeBytes);
+
+    cl_int status;
     status = clEnqueueWriteBuffer(
             commandQueue,
             g_seedBufferCL,
             CL_TRUE,
             0,
             sizeof(unsigned int) *  g_windowWidth * g_windowHeight * 2,
-            seeds,
+            g_seeds,
             0,
             NULL,
             NULL);
@@ -791,7 +744,7 @@ void reInitScene() {
 void reInit(const int reallocBuffers) {
     // Check if I have to reallocate buffers
     if (reallocBuffers) {
-        FreeBuffers();
+        clFreeBuffers();
         updateCamera();
         AllocateBuffers();
     } else {

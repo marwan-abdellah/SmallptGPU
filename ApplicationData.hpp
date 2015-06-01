@@ -29,6 +29,12 @@ int g_windowHeight;
 /** @brief g_pixels A pointer to the image */
 uint* g_pixels;
 
+/** @brief g_colors The colors of the pixels */
+Vector3 *g_colors;
+
+/** @brief g_seeds RNG seeds */
+unsigned int *g_seeds;
+
 // Scene attributes ************************************************************
 
 /** @brief g_camera Main camera in the scene */
